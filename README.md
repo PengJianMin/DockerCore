@@ -255,3 +255,31 @@
         + 在建立veth pair之前，新旧namespace该如何通信呢？答案是pipe（管道）。
             + 以Docker daemon启动容器的过程为例，假设容器内初始化的进程称为init。**Docker daemon在宿主机上负责创建**这个veth pair，把一端绑定到**docker0网桥上**，另一端接入新建的network namespace进程中。这个过程执行期间，**Docker daemon和init就通过pipe进行通信**。具体来说，就是在Docker daemon完成veth pair的创建之前，init在管道的另一端循环等待，直到管道另一端传来Docker daemon关于veth设备的信息，并关闭管道。init才结束等待的过程，并把**它的“eth0”** 启动起来
             + Docker网络示意图![Docker网络示意图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E7%BD%91%E7%BB%9C%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
+    + ```   #define _GNU_SOURCE
+            #include<sys/types.h>
+            #include<sys/wait.h>
+            #include<stdio.h>
+            #include<sched.h>
+            #include<signal.h>
+            #include<unistd.h>
+
+            #define STACK_SIZE (1024*1024)
+            static char child_stack[STACK_SIZE];
+            char * const child_args[] = { "/bin/bash",NULL};
+
+            int child_main(void* args){
+                printf("now in Child process");
+                sethostname("Elesev's New Namespace",12);
+                execv(child_args[0],child_args);
+                return 1;
+            }
+
+            int main(){
+                printf("Program start! \n");
+                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); //加入网络隔离的flag
+                waitpid(child_pid,NULL,0);
+                printf("Child pid is:%d\n",child_pid);
+                printf("Already quit\n");
+                return 0;
+            }
+7. 
