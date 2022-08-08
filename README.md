@@ -23,12 +23,21 @@
     + hild_stack传入子进程使用的**栈空间**
     + flags表示使用哪些CLONE_* 标志位（指上述6种）
     + args则可用于传入用户参数
-2. setns()
-3. unshare()
-4. /proc下的部分文件
+2. /proc下的部分文件
   + 在/proc/[pid]/ns文件下看到**指向**不同**namespace号**的**文件**（**link文件**）
   + 如果两个进程指向的namespace编号**相同**，就说明它们在**同一个namespace**下，否则便在不同namespace里面
   + link文件一旦被打开，只要**文件描述符（fd）** 存在，就算该namespace下的所有**进程都已经结束**，这个namespace也会**一直存在**，**后续进程**也可以再**加入**进来
   + 在Docker中，通过文件描述符**定位和加入**一个**存在的**namespace是**最基本**的方式
+  + **bind方式挂载**
+    + 在**进程都结束**的情况下，也可以通过挂载的形式把namespace**保留**下来，保留namespace的目的是为以后有进程加入**做准备** 
+    + `mount --bind /proc/27514/ns/uts ~/uts` 使用～/uts**文件**来代替/proc/27514/ns/uts
+3. setns()：进程从**原先的**namespace加入某个**已经存在**的namespace
+  + `int setns(int fd, int nstype)`
+    + 参数fd表示要加入namespace的文件描述符。它是一个指向/proc/[pid]/ns目录的文件描述符，可以通过**直接打开**该目录下的**链接**或者打开一个**挂载**了该目录下链接的文件得到
+    + 参数nstype让调用者可以检查fd指向的namespace类型是否符合实际要求。该参数为0表示不检查。
+  + Docker中，使用**docker exec命令**在**已经运行**着的容器中执行一个**新的命令**，就需要用到该方法
+  + 通常为了不影响**进程的调用者**，也为了使新加入的pid namespace**生效**，会**在setns()函数执行后使用clone()创建子进程**继续执行命令，让**原先的进程结束运行**
+  + 
+5. unshare()
 
 
