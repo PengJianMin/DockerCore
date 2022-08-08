@@ -88,9 +88,43 @@
 
         int main(){
             printf("Program start! \n");
-            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWUTS | SIGCHLD,NULL);//插入uts的flag
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWUTS | SIGCHLD,NULL);//插入uts隔离的flag
             waitpid(child_pid,NULL,0);
             printf("Child pid is:%d\n",child_pid);
             printf("Already quit\n");
             return 0;
         }
+3. IPC namespace（Inter-Process Communication, IPC）:**进程间通信**，IPC资源包括常见的**信号量、消息队列和共享内存**
+    + 在同一个IPC namespace下的**进程彼此可见**，不同IPC namespace下的进程则互相不可见
+    + 申请IPC资源就申请了一个**全局唯一**的32位ID，所以IPC namespace中实际上包含了**系统IPC标识符**以及**实现POSIX消息队列的文件系统**
+    + 宿主机上执行
+        + `ipcmk -Q` 创建一个message queue
+        + `ipcs -q` 看到已经开启的message queue
+    + 在新建的**子进程**中调用的shell中执行ipcs -q查看message queu，子进程**找不到原先声明**的message queue了，**已经实现**了IPC的隔离
+    + ```   #define _GNU_SOURCE
+            #include<sys/types.h>
+            #include<sys/wait.h>
+            #include<stdio.h>
+            #include<sched.h>
+            #include<signal.h>
+            #include<unistd.h>
+
+            #define STACK_SIZE (1024*1024)
+            static char child_stack[STACK_SIZE];
+            char * const child_args[] = { "/bin/bash",NULL};
+
+            int child_main(void* args){
+                printf("now in Child process");
+                sethostname("Elesev's New Namespace",12);
+                execv(child_args[0],child_args);
+                return 1;
+            }
+
+            int main(){
+                printf("Program start! \n");
+                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); // 加入IPC隔离的flag
+                waitpid(child_pid,NULL,0);
+                printf("Child pid is:%d\n",child_pid);
+                printf("Already quit\n");
+                return 0;
+            }
