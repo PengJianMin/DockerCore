@@ -287,3 +287,10 @@
     + 一个进程在容器外属于一个**没有特权**的普通用户，但是它创建的容器进程却属于**拥有所有权限**的**超级用户**，这个技术为容器提供了极大的自由
     + 用户在启动Docker daemon的时候指定了**userns-remap**，那么当用户运行容器时，**容器内部的root**用户并不等于宿主机内的root用户，而是**映射到宿主**上的**普通用户**
     + namespace映射图![namespace映射图](https://github.com/PengJianMin/DockerCore/blob/main/namespace%E6%98%A0%E5%B0%84%E5%9B%BE.jpg)
+    + 用户**绑定映射**操作:通过在/proc/[pid]/uid_map和/proc/[pid]/gid_map两个文件中写入对应的绑定信息就可以实现这一点
+        + 这两个文件只允许由拥有该user namespace中CAP_SETUID权限的**进程**写入**一次**，**不允许修改**（**通过进程写入**）
+        + 写入的进程必须是该user namespace的父namespace或者子namespace
+        + `0     1005   4294967295`
+            + 第一个字段ID-inside-ns表示新建的user namespace中对应的user/group ID
+            + 第二个字段ID-outside-ns表示namespace外部映射的user/group ID
+            + 最后一个字段表示映射范围，通常填1，表示只映射一个，如果填大于1的值，则按顺序建立一一映射。
