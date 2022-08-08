@@ -254,4 +254,4 @@
         + 一端放置在新的namespace中，通常命名为**eth0**，一端放在原先的namespace中**连接物理网络设备**，再通过把多个**设备**接入**网桥**或者进行**路由转发**，来实现通信的目的
         + 在建立veth pair之前，新旧namespace该如何通信呢？答案是pipe（管道）。
             + 以Docker daemon启动容器的过程为例，假设容器内初始化的进程称为init。**Docker daemon在宿主机上负责创建**这个veth pair，把一端绑定到**docker0网桥上**，另一端接入新建的network namespace进程中。这个过程执行期间，**Docker daemon和init就通过pipe进行通信**。具体来说，就是在Docker daemon完成veth pair的创建之前，init在管道的另一端循环等待，直到管道另一端传来Docker daemon关于veth设备的信息，并关闭管道。init才结束等待的过程，并把**它的“eth0”** 启动起来
-            + Docker网络示意图![Docker网络示意图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E7%BD%91%E7%BB%9C%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
+            + Docker网络示意图[Docker网络示意图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E7%BD%91%E7%BB%9C%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
