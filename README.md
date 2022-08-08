@@ -162,7 +162,7 @@
 
             int main(){
                 printf("Program start! \n");
-                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);
+                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入pid隔离的flag
                 waitpid(child_pid,NULL,0);
                 printf("Child pid is:%d\n",child_pid);
                 printf("Already quit\n");
@@ -170,3 +170,5 @@
             }
     + 效果：`echo $$` 发现当前进程pid为1
         + 在**子进程**的shell中执行了ps aux/top之类的命令，发现还是可以看到**所有父进程的PID**，那是因为**还没有对文件系统挂载点进行隔离**，ps/top之类的命令调用的是真实系统下的/proc文件内容，看到的自然是所有的进程
+    + PID namespace中的init进程（每一个**独立的**namespace中**都会有**）
+        + 
