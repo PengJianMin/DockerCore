@@ -129,4 +129,44 @@
                 return 0;
             }
 4. PID namespace：对进程PID**重新标号**，即两个**不同namespace下**的进程可以有**相同的PID**
-    + 
+    + **内核**为所有的PID namespace维护了一个**树状结构**
+        + 最顶层的是**系统初始时**创建的，被称为 root namespace
+        + root namespace创建的**新PID namespace**被称为child namespace（**树的子节点**）
+        + **原先的**PID namespace就是新创建的PID namespace的parent namespace（**树的父节点**）
+        + 父节点可以看到子节点中的进程，并可以通过信号等方式对子节点中的进程**产生影响**
+        + 反过来，子节点却**不能看到**父节点PID namespace中的任何内容
+    + **每个**PID namespace中的**第一个进程**“PID 1”，都会像**传统Linux中的init进程**一样拥有**特权**，起特殊作用
+    + 一个namespace中的进程，不可能通过kill或ptrace影响**父节点**或者**兄弟节点**中的进程，因为其他节点的PID在这个namespace中**没有任何意义**
+    + 如果你在新的PID namespace中**重新挂载**/proc文件系统，会发现其下只显示**同属一个PID namespace中**的**其他进程** `mount -t proc /proc`
+    + 在**root namespace中**可以看到所有的进程，并且**递归包含**所有子节点中的进程（**父可以看子**）
+        + Docker daemon 下的所有docker进程都是其namespace的子进程，所以可以查看
+        + 在**外部监控**Docker中运行程序的方法了，就是监控**Docker daemon（server）** **所在的**PID namespace下的所有**进程及其子进程**，再进行筛选即可
+    + ```   #define _GNU_SOURCE
+            #include<sys/types.h>
+            #include<sys/wait.h>
+            #include<stdio.h>
+            #include<sched.h>
+            #include<signal.h>
+            #include<unistd.h>
+
+            #define STACK_SIZE (1024*1024)
+            static char child_stack[STACK_SIZE];
+            char * const child_args[] = { "/bin/bash",NULL};
+
+            int child_main(void* args){
+                printf("now in Child process");
+                sethostname("Elesev's New Namespace",12);
+                execv(child_args[0],child_args);
+                return 1;
+            }
+
+            int main(){
+                printf("Program start! \n");
+                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);
+                waitpid(child_pid,NULL,0);
+                printf("Child pid is:%d\n",child_pid);
+                printf("Already quit\n");
+                return 0;
+            }
+    + 效果：`echo $$` 发现当前进程pid为1
+        + 在**子进程**的shell中执行了ps aux/top之类的命令，发现还是可以看到**所有父进程的PID**，那是因为**还没有对文件系统挂载点进行隔离**，ps/top之类的命令调用的是真实系统下的/proc文件内容，看到的自然是所有的进程
