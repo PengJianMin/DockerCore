@@ -247,5 +247,9 @@
             }
     + 效果：子进程进行的**挂载与卸载操作**都将**只作用**于这个mount namespace。**子进程重新挂载**了/proc文件系统，当进程**退出后**，root mount namespace（主机）的/proc文件系统是**不会被破坏**的。
 6. network namespace：提供了关于**网络资源**的隔离，包括网络设备、IPv4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等
-    + 一个物理的网络设备**最多存在于一个network namespace中（类似pid的namespace无法改变）**，可以通过创建**veth pair**（**虚拟网络设备对**：有两端，类似管道，如果数据从一端传入另一端也能接收到，反之亦然）在不同的network namespace间**创建通道**，以达到通信目的。
-
+    + 一个物理的网络设备**最多存在于一个network namespace中（类似pid的namespace无法改变）**，可以通过创建**veth pair**（**虚拟网络设备对**：有两端，类似管道，如果数据从一端传入另一端也能接收到，反之亦然）在不同的network namespace间**创建通道**，以达到通信目的
+    + 一般情况下，物理网络设备都分配在**最初的root namespace**（表示系统默认的namespace）中。但是如果有多块物理网卡，也可以把其中一块或多块**分配给新创建**的network namespace
+    + 注意：当新创建的network namespace**被释放时**（所有内部的进程都终止**并且**namespace文件没有被挂载或打开），在这个namespace中的物理网卡会**返回到root namespace**，**而非创建该进程的父进程**所在的network namespace
+    + veth pair
+        + 一端放置在新的namespace中，通常命名为**eth0**，一端放在原先的namespace中**连接物理网络设备**，再通过把多个**设备**接入**网桥**或者进行**路由转发**，来实现通信的目的
+        + 在建立veth pair之前，新旧namespace该如何通信呢？
