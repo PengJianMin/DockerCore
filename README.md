@@ -128,3 +128,5 @@
                 printf("Already quit\n");
                 return 0;
             }
+4. PID namespace：对进程PID**重新标号**，即两个**不同namespace下**的进程可以有**相同的PID**
+    + 
