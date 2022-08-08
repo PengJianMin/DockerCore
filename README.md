@@ -282,4 +282,8 @@
                 printf("Already quit\n");
                 return 0;
             }
-7. 
+7. user namespaces：主要隔离了安全相关的标识符（identifier）和属性（attribute），包括用户ID、用户组ID、root目录、key（指密钥）以及特殊权限
+    + 一个**普通用户的进程**通过clone()创建的新进程在新user namespace中可以拥有**不同的用户和用户组**
+    + 一个进程在容器外属于一个**没有特权**的普通用户，但是它创建的容器进程却属于**拥有所有权限**的**超级用户**，这个技术为容器提供了极大的自由
+    + 用户在启动Docker daemon的时候指定了**userns-remap**，那么当用户运行容器时，**容器内部的root**用户并不等于宿主机内的root用户，而是**映射到宿主**上的**普通用户**
+    + namespace映射图![namespace映射图](https://github.com/PengJianMin/DockerCore/blob/main/namespace%E6%98%A0%E5%B0%84%E5%9B%BE.jpg)
