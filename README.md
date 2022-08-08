@@ -203,7 +203,7 @@
     + 挂载传播（mount propagation）：定义了挂载对象（mount object）之间的关系（也指**mount namesapce间的关系**），这样的关系包括共享关系和从属关系，系统用这些关系决定任何挂载对象中的挂载事件**如何传播到其他挂载对象**
         + 共享关系（share relationship）。如果两个挂载对象具有共享关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，反之亦然
         + 从属关系（slave relationship）。如果两个挂载对象形成从属关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，但是反之不行；在这种关系中，从属对象是事件的接收者。
-     + 一个挂载状态可能为以下一种：
+    + 一个挂载状态可能为以下一种：
         + 共享挂载（share）：传播事件的挂载对象称为共享挂载
             + **/lib目录**使用完全的共享挂载传播，**各namespace之间发生的变化**都会互相影响
             + `mount --make-shared <mount-object>`
@@ -218,3 +218,33 @@
         + 不可绑定挂载（unbindable）：它们与私有挂载相似，但是不允许执行绑定挂载，即创建mount namespace时这块文件对象不可被复制
             + **/root目录**一般都是管理员所有，不能让其他mount namespace挂载绑定
             + `mount --make-unbindable <mount-object>`
+    + ```   #define _GNU_SOURCE
+            #include<sys/types.h>
+            #include<sys/wait.h>
+            #include<stdio.h>
+            #include<sched.h>
+            #include<signal.h>
+            #include<unistd.h>
+
+            #define STACK_SIZE (1024*1024)
+            static char child_stack[STACK_SIZE];
+            char * const child_args[] = { "/bin/bash",NULL};
+
+            int child_main(void* args){
+                printf("now in Child process");
+                sethostname("Elesev's New Namespace",12);
+                execv(child_args[0],child_args);
+                return 1;
+            }
+
+            int main(){
+                printf("Program start! \n");
+                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入mount隔离的flag
+                waitpid(child_pid,NULL,0);
+                printf("Child pid is:%d\n",child_pid);
+                printf("Already quit\n");
+                return 0;
+            }
+    + 效果：子进程进行的**挂载与卸载操作**都将**只作用**于这个mount namespace。**子进程重新挂载**了/proc文件系统，当进程**退出后**，root mount namespace（主机）的/proc文件系统是**不会被破坏**的。
+6. network namespace
+
