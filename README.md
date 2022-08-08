@@ -282,6 +282,7 @@
             printf("Already quit\n");
             return 0;
         }
+6. 效果：`ifconfig` 不显示任何网络配置信息
 + user namespaces：主要隔离了安全相关的标识符（identifier）和属性（attribute），包括用户ID、用户组ID、root目录、key（指密钥）以及特殊权限
 1. 一个**普通用户的进程**通过clone()创建的新进程在新user namespace中可以拥有**不同的用户和用户组**
 2. 一个进程在容器外属于一个**没有特权**的普通用户，但是它创建的容器进程却属于**拥有所有权限**的**超级用户**，这个技术为容器提供了极大的自由
