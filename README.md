@@ -96,201 +96,210 @@
             printf("Already quit\n");
             return 0;
         }
-3. IPC namespace（Inter-Process Communication, IPC）:**进程间通信**，IPC资源包括常见的**信号量、消息队列和共享内存**
-    + 在同一个IPC namespace下的**进程彼此可见**，不同IPC namespace下的进程则互相不可见
-    + 申请IPC资源就申请了一个**全局唯一**的32位ID，所以IPC namespace中实际上包含了**系统IPC标识符**以及**实现POSIX消息队列的文件系统**
-    + 宿主机上执行
-        + `ipcmk -Q` 创建一个message queue
-        + `ipcs -q` 看到已经开启的message queue
-    + 在新建的**子进程**中调用的shell中执行ipcs -q查看message queu，子进程**找不到原先声明**的message queue了，**已经实现**了IPC的隔离
-    + ```   #define _GNU_SOURCE
-            #include<sys/types.h>
-            #include<sys/wait.h>
-            #include<stdio.h>
-            #include<sched.h>
-            #include<signal.h>
-            #include<unistd.h>
++ IPC namespace（Inter-Process Communication, IPC）:**进程间通信**，IPC资源包括常见的**信号量、消息队列和共享内存**
+1. 在同一个IPC namespace下的**进程彼此可见**，不同IPC namespace下的进程则互相不可见
+2. 申请IPC资源就申请了一个**全局唯一**的32位ID，所以IPC namespace中实际上包含了**系统IPC标识符**以及**实现POSIX消息队列的文件系统**
+3. 宿主机上执行
+    + `ipcmk -Q` 创建一个message queue
+    + `ipcs -q` 看到已经开启的message queue
+4. 在新建的**子进程**中调用的shell中执行ipcs -q查看message queu，子进程**找不到原先声明**的message queue了，**已经实现**了IPC的隔离
+5. ```   #define _GNU_SOURCE
+        #include<sys/types.h>
+        #include<sys/wait.h>
+        #include<stdio.h>
+        #include<sched.h>
+        #include<signal.h>
+        #include<unistd.h>
 
-            #define STACK_SIZE (1024*1024)
-            static char child_stack[STACK_SIZE];
-            char * const child_args[] = { "/bin/bash",NULL};
+        #define STACK_SIZE (1024*1024)
+        static char child_stack[STACK_SIZE];
+        char * const child_args[] = { "/bin/bash",NULL};
 
-            int child_main(void* args){
-                printf("now in Child process");
-                sethostname("Elesev's New Namespace",12);
-                execv(child_args[0],child_args);
-                return 1;
-            }
+        int child_main(void* args){
+            printf("now in Child process");
+            sethostname("Elesev's New Namespace",12);
+            execv(child_args[0],child_args);
+            return 1;
+        }
 
-            int main(){
-                printf("Program start! \n");
-                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); // 加入IPC隔离的flag
-                waitpid(child_pid,NULL,0);
-                printf("Child pid is:%d\n",child_pid);
-                printf("Already quit\n");
-                return 0;
-            }
-4. PID namespace：对进程PID**重新标号**，即两个**不同namespace下**的进程可以有**相同的PID**
-    + **内核**为所有的PID namespace维护了一个**树状结构**
-        + 最顶层的是**系统初始时**创建的，被称为 root namespace
-        + root namespace创建的**新PID namespace**被称为child namespace（**树的子节点**）
-        + **原先的**PID namespace就是新创建的PID namespace的parent namespace（**树的父节点**）
-        + 父节点可以看到子节点中的进程，并可以通过信号等方式对子节点中的进程**产生影响**
-        + 反过来，子节点却**不能看到**父节点PID namespace中的任何内容
-    + **每个**PID namespace中的**第一个进程**“PID 1”，都会像**传统Linux中的init进程**一样拥有**特权**，起特殊作用
-    + 一个namespace中的进程，不可能通过kill或ptrace影响**父节点**或者**兄弟节点**中的进程，因为其他节点的PID在这个namespace中**没有任何意义**
-    + 如果你在新的PID namespace中**重新挂载**/proc文件系统，会发现其下只显示**同属一个PID namespace中**的**其他进程** `mount -t proc /proc`
-    + 在**root namespace中**可以看到所有的进程，并且**递归包含**所有子节点中的进程（**父可以看子**）
-        + Docker daemon 下的所有docker进程都是其namespace的子进程，所以可以查看
-        + 在**外部监控**Docker中运行程序的方法了，就是监控**Docker daemon（server）** **所在的**PID namespace下的所有**进程及其子进程**，再进行筛选即可
-    + ```   #define _GNU_SOURCE
-            #include<sys/types.h>
-            #include<sys/wait.h>
-            #include<stdio.h>
-            #include<sched.h>
-            #include<signal.h>
-            #include<unistd.h>
+        int main(){
+            printf("Program start! \n");
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); // 加入IPC隔离的flag
+            waitpid(child_pid,NULL,0);
+            printf("Child pid is:%d\n",child_pid);
+            printf("Already quit\n");
+            return 0;
+        }
++ PID namespace：对进程PID**重新标号**，即两个**不同namespace下**的进程可以有**相同的PID**
+1. **内核**为所有的PID namespace维护了一个**树状结构**
+    + 最顶层的是**系统初始时**创建的，被称为 root namespace
+    + root namespace创建的**新PID namespace**被称为child namespace（**树的子节点**）
+    + **原先的**PID namespace就是新创建的PID namespace的parent namespace（**树的父节点**）
+    + 父节点可以看到子节点中的进程，并可以通过信号等方式对子节点中的进程**产生影响**
+    + 反过来，子节点却**不能看到**父节点PID namespace中的任何内容
+2. **每个**PID namespace中的**第一个进程**“PID 1”，都会像**传统Linux中的init进程**一样拥有**特权**，起特殊作用
+3. 一个namespace中的进程，不可能通过kill或ptrace影响**父节点**或者**兄弟节点**中的进程，因为其他节点的PID在这个namespace中**没有任何意义**
+4. 如果你在新的PID namespace中**重新挂载**/proc文件系统，会发现其下只显示**同属一个PID namespace中**的**其他进程** `mount -t proc /proc`
+5. 在**root namespace中**可以看到所有的进程，并且**递归包含**所有子节点中的进程（**父可以看子**）
+    + Docker daemon 下的所有docker进程都是其namespace的子进程，所以可以查看
+    + 在**外部监控**Docker中运行程序的方法了，就是监控**Docker daemon（server）** **所在的**PID namespace下的所有**进程及其子进程**，再进行筛选即可
+6. ```   #define _GNU_SOURCE
+        #include<sys/types.h>
+        #include<sys/wait.h>
+        #include<stdio.h>
+        #include<sched.h>
+        #include<signal.h>
+        #include<unistd.h>
 
-            #define STACK_SIZE (1024*1024)
-            static char child_stack[STACK_SIZE];
-            char * const child_args[] = { "/bin/bash",NULL};
+        #define STACK_SIZE (1024*1024)
+        static char child_stack[STACK_SIZE];
+        char * const child_args[] = { "/bin/bash",NULL};
 
-            int child_main(void* args){
-                printf("now in Child process");
-                sethostname("Elesev's New Namespace",12);
-                execv(child_args[0],child_args);
-                return 1;
-            }
+        int child_main(void* args){
+            printf("now in Child process");
+            sethostname("Elesev's New Namespace",12);
+            execv(child_args[0],child_args);
+            return 1;
+        }
 
-            int main(){
-                printf("Program start! \n");
-                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入pid隔离的flag
-                waitpid(child_pid,NULL,0);
-                printf("Child pid is:%d\n",child_pid);
-                printf("Already quit\n");
-                return 0;
-            }
-    + 效果：`echo $$` 发现当前进程pid为1
-        + 在**子进程**的shell中执行了ps aux/top之类的命令，发现还是可以看到**所有父进程的PID**，那是因为**还没有对文件系统挂载点进行隔离**，ps/top之类的命令调用的是真实系统下的/proc文件内容，看到的自然是所有的进程 `mount -t proc proc /proc`
-    + PID namespace中的**init进程**（每一个**独立的**namespace中**都会有**）
-        + 在**传统的Unix系统**中，PID为1的进程是init，地位非常特殊。它作为**所有进程**的父进程，维护一张**进程表**，不断检查进程的状态，一旦有某个子进程因为**父进程错误**成为了“孤儿”进程，init就会负责**收养这个子进程**并最终**回收资源**，**结束进程**
-        + 容器中，启动的第一个进程（init进程）也需要实现类似init的功能，**维护**所有后续启动进程的运行状态
-            + 当系统中存在树状嵌套结构的PID namespace时，若某个子进程成为孤儿进程，收养该子进程的责任就交给了该子进程**所属的PID namespace中的init进程**
-            + 如果**确实需要**在**一个Docker容器中运行多个进程**，**最先启动的命令进程**应该是具有资源监控与回收等管理能力的，如**bash**
-    + 信号与init进程
-        + 如果init中**没有编写**处理某个信号的代码逻辑，那么与init在**同一个PID namespace下**的进程（**即使有超级权限**）发送给它的该信号都会被屏蔽。这个功能的主要作用是防止init进程被误杀（信号屏蔽）
-        + **父节点中的进程**发送的信号，如果不是SIGKILL（销毁进程）或SIGSTOP（暂停进程）**也会被忽略**。
-        + 一旦**init进程被销毁**，同一PID namespace中的**其他进程**也随之接收到SIGKILL信号而被销毁。
-            + **理论上**，该PID namespace也不复存在了
-            + 但是如果/proc/[pid]/ns/pid处于**被挂载**或者**打开状态**，namespace就会被**保留下来**
-            + 然而，保留下来的namespace**无法通过setns()或者fork()创建进程**，所以实际上并**没有什么作用**
-        + 当**一个容器内存在多个进程时**，**容器内的**init进程可以对信号进行捕获，当SIGTERM或SIGINT等信号到来时，对其子进程做信息保存、资源回收等处理工作
-    + 挂载proc文件系统
-        + `mount -t proc proc /proc`
-        + 如果在新的PID namespace中使用ps命令查看，看到的**还是所有的进程**，因为与PID直接相关的/proc文件系统（procfs）没有挂载到一个**与原/proc不同**的位置
-        + 此时并**没有进行mount namespace的隔离**，所以该操作实际上已经**影响了root namespace的文件系统**。当退出新建的PID namespace以后，再执行ps a时，就会发现出错，**再次执行** `mount -t proc proc /proc` 可以**修复错误**
-    +  unshare()和setns() 在PID namespace中使用时**需要注意**：
-        + 创建其他namespace时unshare()和setns()会**直接进入新的**namespace，而唯独PID namespace**例外**
-        + unshare()允许用户在**原有进程中建立**命名空间进行隔离。但创建了PID namespace后，原先**unshare()调用者进程**并**不进入**新的**PID namespace**，**接下来创建的子进程**才会进入新的namespace，这个**子进程也就随之成为新namespace中的init进程**
-        + 调用setns()创建新PID namespace时，**调用者进程**也不进入新的**PID namespace**，而是**随后创建的子进程进入**
-        + 原因：
-            + 调用getpid()函数得到的PID是**根据调用者所在的PID namespace而决定返回哪个PID**，进入新的PID namespace会导致PID产生变化。而对用户态的程序和库函数来说，它们都认为进程的PID是一个常量，PID的变化会引起这些**进程崩溃**
-            + 一旦程序进程创建以后，那么它的PID namespace的**关系就确定下来**了，**进程不会变更它们对应的PID namespace**
-            + **在Docker中**，**docker exec**会使用setns()函数**加入已经存在**的命名空间，但是**最终还是**会调用clone()函数，原因就在于此。
-5. mount namespace：**特指mount命令**的**影响（作用、效果）范围**，**不是指文件内容**。通过隔离文件系统**挂载点**对隔离文件系统提供支持，不同mount namespace中的文件结构发生变化互不影响
-    + 进程在创建mount namespace时，会把**当前的文件结构（指目录和文件等等）** 复制给新的namespace。新namespace中的所有mount操作都只影响**自身的文件系统**，对外界不会产生任何影响
-    + 父节点namespace中的进程挂载了一张CD-ROM，这时子节点namespace复制的目录结构是**无法自动挂载**上这张CD-ROM的，因为这种操作会影响到父节点的文件系统
-    + 挂载传播（mount propagation）：定义了挂载对象（mount object）之间的关系（也指**mount namesapce间的关系**），这样的关系包括共享关系和从属关系，系统用这些关系决定任何挂载对象中的挂载事件**如何传播到其他挂载对象**
-        + 共享关系（share relationship）。如果两个挂载对象具有共享关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，反之亦然
-        + 从属关系（slave relationship）。如果两个挂载对象形成从属关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，但是反之不行；在这种关系中，从属对象是事件的接收者。
-    + 一个挂载状态可能为以下一种：
-        + 共享挂载（share）：传播事件的挂载对象称为共享挂载
-            + **/lib目录**使用完全的共享挂载传播，**各namespace之间发生的变化**都会互相影响
-            + `mount --make-shared <mount-object>`
-        + 从属挂载（slave）：接收传播事件的挂载对象称为从属挂载：
-            + 上层的mount namespace下的 **/bin目录**与child namespace通过master slave方式进行挂载传播，当mount namespace中的/bin目录发生变化时，发生的挂载事件能够**自动传播**到child namespace中的**/bin目录**
-            + `mount --make-slave <shared-mount-object>`
-        + 共享/从属挂载（shared and slave）：同时兼有前述两者特征的挂载对象称为共享/从属挂载
-            + `mount --make-share <slave-mount-object>`
-        + 私有挂载（private）：既不传播也不接收传播事件的挂载对象称为私有挂载
-            + **/proc目录**使用私有挂载传播的方式，各mount namespace之间互相隔离
-            + `mount --make-private <mount-object>`
-        + 不可绑定挂载（unbindable）：它们与私有挂载相似，但是不允许执行绑定挂载，即创建mount namespace时这块文件对象不可被复制
-            + **/root目录**一般都是管理员所有，不能让其他mount namespace挂载绑定
-            + `mount --make-unbindable <mount-object>`
-    + ```   #define _GNU_SOURCE
-            #include<sys/types.h>
-            #include<sys/wait.h>
-            #include<stdio.h>
-            #include<sched.h>
-            #include<signal.h>
-            #include<unistd.h>
+        int main(){
+            printf("Program start! \n");
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入pid隔离的flag
+            waitpid(child_pid,NULL,0);
+            printf("Child pid is:%d\n",child_pid);
+            printf("Already quit\n");
+            return 0;
+        }
+7. 效果：`echo $$` 发现当前进程pid为1
+    + 在**子进程**的shell中执行了ps aux/top之类的命令，发现还是可以看到**所有父进程的PID**，那是因为**还没有对文件系统挂载点进行隔离**，ps/top之类的命令调用的是真实系统下的/proc文件内容，看到的自然是所有的进程 `mount -t proc proc /proc`
+8. PID namespace中的**init进程**（每一个**独立的**namespace中**都会有**）
+    + 在**传统的Unix系统**中，PID为1的进程是init，地位非常特殊。它作为**所有进程**的父进程，维护一张**进程表**，不断检查进程的状态，一旦有某个子进程因为**父进程错误**成为了“孤儿”进程，init就会负责**收养这个子进程**并最终**回收资源**，**结束进程**
+    + 容器中，启动的第一个进程（init进程）也需要实现类似init的功能，**维护**所有后续启动进程的运行状态
+        + 当系统中存在树状嵌套结构的PID namespace时，若某个子进程成为孤儿进程，收养该子进程的责任就交给了该子进程**所属的PID namespace中的init进程**
+        + 如果**确实需要**在**一个Docker容器中运行多个进程**，**最先启动的命令进程**应该是具有资源监控与回收等管理能力的，如**bash**
+9. 信号与init进程
+    + 如果init中**没有编写**处理某个信号的代码逻辑，那么与init在**同一个PID namespace下**的进程（**即使有超级权限**）发送给它的该信号都会被屏蔽。这个功能的主要作用是防止init进程被误杀（信号屏蔽）
+    + **父节点中的进程**发送的信号，如果不是SIGKILL（销毁进程）或SIGSTOP（暂停进程）**也会被忽略**。
+    + 一旦**init进程被销毁**，同一PID namespace中的**其他进程**也随之接收到SIGKILL信号而被销毁。
+        + **理论上**，该PID namespace也不复存在了
+        + 但是如果/proc/[pid]/ns/pid处于**被挂载**或者**打开状态**，namespace就会被**保留下来**
+        + 然而，保留下来的namespace**无法通过setns()或者fork()创建进程**，所以实际上并**没有什么作用**
+    + 当**一个容器内存在多个进程时**，**容器内的**init进程可以对信号进行捕获，当SIGTERM或SIGINT等信号到来时，对其子进程做信息保存、资源回收等处理工作
+10. 挂载proc文件系统
+    + `mount -t proc proc /proc`
+    + 如果在新的PID namespace中使用ps命令查看，看到的**还是所有的进程**，因为与PID直接相关的/proc文件系统（procfs）没有挂载到一个**与原/proc不同**的位置
+    + 此时并**没有进行mount namespace的隔离**，所以该操作实际上已经**影响了root namespace的文件系统**。当退出新建的PID namespace以后，再执行ps a时，就会发现出错，**再次执行** `mount -t proc proc /proc` 可以**修复错误**
+11.  unshare()和setns() 在PID namespace中使用时**需要注意**：
+    + 创建其他namespace时unshare()和setns()会**直接进入新的**namespace，而唯独PID namespace**例外**
+    + unshare()允许用户在**原有进程中建立**命名空间进行隔离。但创建了PID namespace后，原先**unshare()调用者进程**并**不进入**新的**PID namespace**，**接下来创建的子进程**才会进入新的namespace，这个**子进程也就随之成为新namespace中的init进程**
+    + 调用setns()创建新PID namespace时，**调用者进程**也不进入新的**PID namespace**，而是**随后创建的子进程进入**
+    + 原因：
+        + 调用getpid()函数得到的PID是**根据调用者所在的PID namespace而决定返回哪个PID**，进入新的PID namespace会导致PID产生变化。而对用户态的程序和库函数来说，它们都认为进程的PID是一个常量，PID的变化会引起这些**进程崩溃**
+        + 一旦程序进程创建以后，那么它的PID namespace的**关系就确定下来**了，**进程不会变更它们对应的PID namespace**
+        + **在Docker中**，**docker exec**会使用setns()函数**加入已经存在**的命名空间，但是**最终还是**会调用clone()函数，原因就在于此。
++ mount namespace：**特指mount命令**的**影响（作用、效果）范围**，**不是指文件内容**。通过隔离文件系统**挂载点**对隔离文件系统提供支持，不同mount namespace中的文件结构发生变化互不影响
+1. 进程在创建mount namespace时，会把**当前的文件结构（指目录和文件等等）** 复制给新的namespace。新namespace中的所有mount操作都只影响**自身的文件系统**，对外界不会产生任何影响
+2. 父节点namespace中的进程挂载了一张CD-ROM，这时子节点namespace复制的目录结构是**无法自动挂载**上这张CD-ROM的，因为这种操作会影响到父节点的文件系统
+3. 挂载传播（mount propagation）：定义了挂载对象（mount object）之间的关系（也指**mount namesapce间的关系**），这样的关系包括共享关系和从属关系，系统用这些关系决定任何挂载对象中的挂载事件**如何传播到其他挂载对象**
+    + 共享关系（share relationship）。如果两个挂载对象具有共享关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，反之亦然
+    + 从属关系（slave relationship）。如果两个挂载对象形成从属关系，那么一个挂载对象中的挂载事件会传播到另一个挂载对象，但是反之不行；在这种关系中，从属对象是事件的接收者。
+4. 一个挂载状态可能为以下一种：
+    + 共享挂载（share）：传播事件的挂载对象称为共享挂载
+        + **/lib目录**使用完全的共享挂载传播，**各namespace之间发生的变化**都会互相影响
+        + `mount --make-shared <mount-object>`
+    + 从属挂载（slave）：接收传播事件的挂载对象称为从属挂载：
+        + 上层的mount namespace下的 **/bin目录**与child namespace通过master slave方式进行挂载传播，当mount namespace中的/bin目录发生变化时，发生的挂载事件能够**自动传播**到child namespace中的**/bin目录**
+        + `mount --make-slave <shared-mount-object>`
+    + 共享/从属挂载（shared and slave）：同时兼有前述两者特征的挂载对象称为共享/从属挂载
+        + `mount --make-share <slave-mount-object>`
+    + 私有挂载（private）：既不传播也不接收传播事件的挂载对象称为私有挂载
+        + **/proc目录**使用私有挂载传播的方式，各mount namespace之间互相隔离
+        + `mount --make-private <mount-object>`
+    + 不可绑定挂载（unbindable）：它们与私有挂载相似，但是不允许执行绑定挂载，即创建mount namespace时这块文件对象不可被复制
+        + **/root目录**一般都是管理员所有，不能让其他mount namespace挂载绑定
+        + `mount --make-unbindable <mount-object>`
+5. ```   #define _GNU_SOURCE
+        #include<sys/types.h>
+        #include<sys/wait.h>
+        #include<stdio.h>
+        #include<sched.h>
+        #include<signal.h>
+        #include<unistd.h>
 
-            #define STACK_SIZE (1024*1024)
-            static char child_stack[STACK_SIZE];
-            char * const child_args[] = { "/bin/bash",NULL};
+        #define STACK_SIZE (1024*1024)
+        static char child_stack[STACK_SIZE];
+        char * const child_args[] = { "/bin/bash",NULL};
 
-            int child_main(void* args){
-                printf("now in Child process");
-                sethostname("Elesev's New Namespace",12);
-                execv(child_args[0],child_args);
-                return 1;
-            }
+        int child_main(void* args){
+            printf("now in Child process");
+            sethostname("Elesev's New Namespace",12);
+            execv(child_args[0],child_args);
+            return 1;
+        }
 
-            int main(){
-                printf("Program start! \n");
-                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入mount隔离的flag
-                waitpid(child_pid,NULL,0);
-                printf("Child pid is:%d\n",child_pid);
-                printf("Already quit\n");
-                return 0;
-            }
-    + 效果：子进程进行的**挂载与卸载操作**都将**只作用**于这个mount namespace。**子进程重新挂载**了/proc文件系统，当进程**退出后**，root mount namespace（主机）的/proc文件系统是**不会被破坏**的。
-6. network namespace：提供了关于**网络资源**的隔离，包括网络设备、IPv4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等
-    + 一个物理的网络设备**最多存在于一个network namespace中（类似pid的namespace无法改变）**，可以通过创建**veth pair**（**虚拟网络设备对**：有两端，类似管道，如果数据从一端传入另一端也能接收到，反之亦然）在不同的network namespace间**创建通道**，以达到通信目的
-    + 一般情况下，物理网络设备都分配在**最初的root namespace**（表示系统默认的namespace）中。但是如果有多块物理网卡，也可以把其中一块或多块**分配给新创建**的network namespace
-    + 注意：当新创建的network namespace**被释放时**（所有内部的进程都终止**并且**namespace文件没有被挂载或打开），在这个namespace中的物理网卡会**返回到root namespace**，**而非创建该进程的父进程**所在的network namespace
-    + veth pair（**虚拟网络设备对**）
-        + 一端放置在新的namespace中，通常命名为**eth0**，一端放在原先的namespace中**连接物理网络设备**，再通过把多个**设备**接入**网桥**或者进行**路由转发**，来实现通信的目的
-        + 在建立veth pair之前，新旧namespace该如何通信呢？答案是pipe（管道）。
-            + 以Docker daemon启动容器的过程为例，假设容器内初始化的进程称为init。**Docker daemon在宿主机上负责创建**这个veth pair，把一端绑定到**docker0网桥上**，另一端接入新建的network namespace进程中。这个过程执行期间，**Docker daemon和init就通过pipe进行通信**。具体来说，就是在Docker daemon完成veth pair的创建之前，init在管道的另一端循环等待，直到管道另一端传来Docker daemon关于veth设备的信息，并关闭管道。init才结束等待的过程，并把**它的“eth0”** 启动起来
-            + Docker网络示意图![Docker网络示意图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E7%BD%91%E7%BB%9C%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
-    + ```   #define _GNU_SOURCE
-            #include<sys/types.h>
-            #include<sys/wait.h>
-            #include<stdio.h>
-            #include<sched.h>
-            #include<signal.h>
-            #include<unistd.h>
+        int main(){
+            printf("Program start! \n");
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL);//加入mount隔离的flag
+            waitpid(child_pid,NULL,0);
+            printf("Child pid is:%d\n",child_pid);
+            printf("Already quit\n");
+            return 0;
+        }
+6. 效果：子进程进行的**挂载与卸载操作**都将**只作用**于这个mount namespace。**子进程重新挂载**了/proc文件系统，当进程**退出后**，root mount namespace（主机）的/proc文件系统是**不会被破坏**的。
++ network namespace：提供了关于**网络资源**的隔离，包括网络设备、IPv4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等
+1. 一个物理的网络设备**最多存在于一个network namespace中（类似pid的namespace无法改变）**，可以通过创建**veth pair**（**虚拟网络设备对**：有两端，类似管道，如果数据从一端传入另一端也能接收到，反之亦然）在不同的network namespace间**创建通道**，以达到通信目的
+2. 一般情况下，物理网络设备都分配在**最初的root namespace**（表示系统默认的namespace）中。但是如果有多块物理网卡，也可以把其中一块或多块**分配给新创建**的network namespace
+3. 注意：当新创建的network namespace**被释放时**（所有内部的进程都终止**并且**namespace文件没有被挂载或打开），在这个namespace中的物理网卡会**返回到root namespace**，**而非创建该进程的父进程**所在的network namespace
+4. veth pair（**虚拟网络设备对**）
+    + 一端放置在新的namespace中，通常命名为**eth0**，一端放在原先的namespace中**连接物理网络设备**，再通过把多个**设备**接入**网桥**或者进行**路由转发**，来实现通信的目的
+    + 在建立veth pair之前，新旧namespace该如何通信呢？答案是pipe（管道）。
+        + 以Docker daemon启动容器的过程为例，假设容器内初始化的进程称为init。**Docker daemon在宿主机上负责创建**这个veth pair，把一端绑定到**docker0网桥上**，另一端接入新建的network namespace进程中。这个过程执行期间，**Docker daemon和init就通过pipe进行通信**。具体来说，就是在Docker daemon完成veth pair的创建之前，init在管道的另一端循环等待，直到管道另一端传来Docker daemon关于veth设备的信息，并关闭管道。init才结束等待的过程，并把**它的“eth0”** 启动起来
+        + Docker网络示意图![Docker网络示意图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E7%BD%91%E7%BB%9C%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
+5. ```   #define _GNU_SOURCE
+        #include<sys/types.h>
+        #include<sys/wait.h>
+        #include<stdio.h>
+        #include<sched.h>
+        #include<signal.h>
+        #include<unistd.h>
 
-            #define STACK_SIZE (1024*1024)
-            static char child_stack[STACK_SIZE];
-            char * const child_args[] = { "/bin/bash",NULL};
+        #define STACK_SIZE (1024*1024)
+        static char child_stack[STACK_SIZE];
+        char * const child_args[] = { "/bin/bash",NULL};
 
-            int child_main(void* args){
-                printf("now in Child process");
-                sethostname("Elesev's New Namespace",12);
-                execv(child_args[0],child_args);
-                return 1;
-            }
+        int child_main(void* args){
+            printf("now in Child process");
+            sethostname("Elesev's New Namespace",12);
+            execv(child_args[0],child_args);
+            return 1;
+        }
 
-            int main(){
-                printf("Program start! \n");
-                int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); //加入网络隔离的flag
-                waitpid(child_pid,NULL,0);
-                printf("Child pid is:%d\n",child_pid);
-                printf("Already quit\n");
-                return 0;
-            }
-7. user namespaces：主要隔离了安全相关的标识符（identifier）和属性（attribute），包括用户ID、用户组ID、root目录、key（指密钥）以及特殊权限
-    + 一个**普通用户的进程**通过clone()创建的新进程在新user namespace中可以拥有**不同的用户和用户组**
-    + 一个进程在容器外属于一个**没有特权**的普通用户，但是它创建的容器进程却属于**拥有所有权限**的**超级用户**，这个技术为容器提供了极大的自由
-    + 用户在启动Docker daemon的时候指定了**userns-remap**，那么当用户运行容器时，**容器内部的root**用户并不等于宿主机内的root用户，而是**映射到宿主**上的**普通用户**
-    + namespace映射图![namespace映射图](https://github.com/PengJianMin/DockerCore/blob/main/namespace%E6%98%A0%E5%B0%84%E5%9B%BE.jpg)
-    + 用户**绑定映射**操作:通过在/proc/[pid]/uid_map和/proc/[pid]/gid_map两个文件中写入对应的绑定信息就可以实现这一点
-        + 这两个文件只允许由拥有该user namespace中CAP_SETUID权限的**进程**写入**一次**，**不允许修改**（**通过进程写入**）
-        + 写入的进程必须是该user namespace的父namespace或者子namespace
-        + `0     1005   4294967295`
-            + 第一个字段ID-inside-ns表示新建的user namespace中对应的user/group ID
-            + 第二个字段ID-outside-ns表示namespace外部映射的user/group ID
-            + 最后一个字段表示映射范围，通常填1，表示只映射一个，如果填大于1的值，则按顺序建立一一映射。
+        int main(){
+            printf("Program start! \n");
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWNET|CLONE_NEWNS|CLONE_NEWPID|CLONE_NEWIPC|CLONE_NEWUTS | SIGCHLD,NULL); //加入网络隔离的flag
+            waitpid(child_pid,NULL,0);
+            printf("Child pid is:%d\n",child_pid);
+            printf("Already quit\n");
+            return 0;
+        }
++ user namespaces：主要隔离了安全相关的标识符（identifier）和属性（attribute），包括用户ID、用户组ID、root目录、key（指密钥）以及特殊权限
+1. 一个**普通用户的进程**通过clone()创建的新进程在新user namespace中可以拥有**不同的用户和用户组**
+2. 一个进程在容器外属于一个**没有特权**的普通用户，但是它创建的容器进程却属于**拥有所有权限**的**超级用户**，这个技术为容器提供了极大的自由
+3. 用户在启动Docker daemon的时候指定了**userns-remap**，那么当用户运行容器时，**容器内部的root**用户并不等于宿主机内的root用户，而是**映射到宿主**上的**普通用户**
+4. namespace映射图![namespace映射图](https://github.com/PengJianMin/DockerCore/blob/main/namespace%E6%98%A0%E5%B0%84%E5%9B%BE.jpg)
+5. 用户**绑定映射**操作:通过在/proc/[pid]/uid_map和/proc/[pid]/gid_map两个文件中写入对应的绑定信息就可以实现这一点
+    + 这两个文件只允许由拥有该user namespace中CAP_SETUID权限的**进程**写入**一次**，**不允许修改**（**通过进程写入**）
+    + 写入的进程必须是该user namespace的父namespace或者子namespace
+    + `0     1005   4294967295`
+        + 第一个字段ID-inside-ns表示新建的user namespace中对应的user/group ID
+        + 第二个字段ID-outside-ns表示namespace外部映射的user/group ID
+        + 最后一个字段表示映射范围，通常填1，表示只映射一个，如果填大于1的值，则按顺序建立一一映射。
++ Docker不仅使用了user namespace，还使用了在user namespace中涉及的**Capabilities机制**。
+1. Linux把原来和**超级用户**相关的**高级权限**划分为不同的单元，称为Capability。
+2. 管理员可以独立对**特定的Capability**进行使用或禁止
+3. Docker同时使用user namespace和Capability，这在很大程度上加强了容器的安全性。
++ 虽然namespace技术使用非常简单，但要真正把容器做到安全易用却并非易事
+1. PID namespace中，需要实现一个完善的init进程来维护好所有进程
+2. network namespace中，还有复杂的路由表和iptables规则没有配置
+3. user namespace中还有许多权限问题需要考虑
+4. 某些方面Docker已经做得不错，而有些方面才刚刚起步
