@@ -54,7 +54,7 @@
              int main(){
                 pid_t fpid;
                 int count = 0;
-                fpid = fork();
+                fpid = fork(); //调用fork()
                 if(fpid<0){
                     printf("error in fork!");
                 }else if(fpid==0){
@@ -65,4 +65,32 @@
                 return 0; 
              } 
         + `gcc -Wall fork_example.c && ./aout`            
- 
++ UTS namespace（UNIX Time-sharing System）：提供了主机名和域名的隔离
+1. 每个Docker容器就可以拥有**独立的主机名和域名**了，在**网络上**可以被视作一个**独立的节点**，**而非宿主机上的一个进程**，**虽然**本质上还是进程
+2. ```  #define _GNU_SOURCE
+        #include<sys/types.h>
+        #include<sys/wait.h>
+        #include<stdio.h>
+        #include<sched.h>
+        #include<signal.h>
+        #include<unistd.h>
+
+        #define STACK_SIZE (1024*1024)//中间有空格
+        static char child_stack[STACK_SIZE];
+        char * const child_args[] = { "/bin/bash",NULL}; //第二个参数只能是NULL
+
+        int child_main(void* args){
+            printf("now in Child process");
+            sethostname("Elesev's New Namespace",100); // 效果[user@hostname]-->[root@Elesev's New elesev] 
+            execv(child_args[0],child_args);
+            return 1;
+        }
+
+        int main(){
+            printf("Program start! \n");
+            int child_pid = clone(child_main,child_stack+STACK_SIZE,CLONE_NEWUTS | SIGCHLD,NULL);//插入uts的flag
+            waitpid(child_pid,NULL,0);
+            printf("Child pid is:%d\n",child_pid);
+            printf("Already quit\n");
+            return 0;
+        }
