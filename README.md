@@ -246,5 +246,6 @@
                 return 0;
             }
     + 效果：子进程进行的**挂载与卸载操作**都将**只作用**于这个mount namespace。**子进程重新挂载**了/proc文件系统，当进程**退出后**，root mount namespace（主机）的/proc文件系统是**不会被破坏**的。
-6. network namespace
+6. network namespace：提供了关于**网络资源**的隔离，包括网络设备、IPv4和IPv6协议栈、IP路由表、防火墙、/proc/net目录、/sys/class/net目录、套接字（socket）等
+    + 一个物理的网络设备**最多存在于一个network namespace中（类似pid的namespace无法改变）**，可以通过创建**veth pair**（**虚拟网络设备对**：有两端，类似管道，如果数据从一端传入另一端也能接收到，反之亦然）在不同的network namespace间**创建通道**，以达到通信目的。
 
