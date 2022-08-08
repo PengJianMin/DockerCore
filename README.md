@@ -208,7 +208,7 @@
             + **/lib目录**使用完全的共享挂载传播，**各namespace之间发生的变化**都会互相影响
             + `mount --make-shared <mount-object>`
         + 从属挂载（slave）：接收传播事件的挂载对象称为从属挂载：
-            + 上层的mount namespace下的**/bin目录**与child namespace通过master slave方式进行挂载传播，当mount namespace中的/bin目录发生变化时，发生的挂载事件能够**自动传播**到child namespace中的**/bin目录**
+            + 上层的mount namespace下的 **/bin目录**与child namespace通过master slave方式进行挂载传播，当mount namespace中的/bin目录发生变化时，发生的挂载事件能够**自动传播**到child namespace中的**/bin目录**
             + `mount --make-slave <shared-mount-object>`
         + 共享/从属挂载（shared and slave）：同时兼有前述两者特征的挂载对象称为共享/从属挂载
             + `mount --make-share <slave-mount-object>`
