@@ -188,5 +188,12 @@
     + 挂载proc文件系统
         + `mount -t proc proc /proc`
         + 如果在新的PID namespace中使用ps命令查看，看到的**还是所有的进程**，因为与PID直接相关的/proc文件系统（procfs）没有挂载到一个**与原/proc不同**的位置
-        + 此时并**没有进行mount namespace的隔离**，所以该操作实际上已经**影响了root namespace的文件系统**。当退出新建的PID namespace以后，再执行ps a时，就会发现出错，再次执行mount -t proc proc /proc可以**修复错误**
-
+        + 此时并**没有进行mount namespace的隔离**，所以该操作实际上已经**影响了root namespace的文件系统**。当退出新建的PID namespace以后，再执行ps a时，就会发现出错，**再次执行** `mount -t proc proc /proc` 可以**修复错误**
+    +  unshare()和setns() 在PID namespace中使用时**需要注意**：
+        + 创建其他namespace时unshare()和setns()会**直接进入新的**namespace，而唯独PID namespace**例外**
+        + unshare()允许用户在**原有进程中建立**命名空间进行隔离。但创建了PID namespace后，原先**unshare()调用者进程**并**不进入**新的**PID namespace**，**接下来创建的子进程**才会进入新的namespace，这个**子进程也就随之成为新namespace中的init进程**
+        + 调用setns()创建新PID namespace时，**调用者进程**也不进入新的**PID namespace**，而是**随后创建的子进程进入**
+        + 原因：
+            + 调用getpid()函数得到的PID是**根据调用者所在的PID namespace而决定返回哪个PID**，进入新的PID namespace会导致PID产生变化。而对用户态的程序和库函数来说，它们都认为进程的PID是一个常量，PID的变化会引起这些**进程崩溃**
+            + 一旦程序进程创建以后，那么它的PID namespace的**关系就确定下来**了，**进程不会变更它们对应的PID namespace**
+            + **在Docker中**，**docker exec**会使用setns()函数**加入已经存在**的命名空间，但是**最终还是**会调用clone()函数，原因就在于此。
