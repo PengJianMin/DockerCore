@@ -49,7 +49,20 @@
         + 在父进程中，fork()返回**新创建子进程**的进程ID
         + 在子进程中，fork()**返回0**
         + 如果出现**错误**，fork()返回一个**负值**
-6. 
-   
-
-
+        + ```#include<unistd.h>
+             #include<stdio.h>
+             int main(){
+                pid_t fpid;
+                int count = 0;
+                fpid = fork();
+                if(fpid<0){
+                    printf("error in fork!");
+                }else if(fpid==0){
+                    printf("i am child, pid is %d\n",getpid());
+                }else{
+                    printf("i am parent, pid is %d\n",getpid());
+                }
+                return 0; 
+             } 
+        + `gcc -Wall fork_example.c && ./aout`            
+ 
