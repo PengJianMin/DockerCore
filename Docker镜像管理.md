@@ -122,3 +122,37 @@
 + 直接**对容器进行**持久化和**使用镜像进行**持久化的区别在于以下两点：
 1. 两者**应用的对象**有所不同，docker export用于**持久化容器**，而docker push和docker save用于**持久化镜像**
 2. 将容器**导出后再导入（exported-imported）** 后的**容器**会**丢失所有的历史**，而**保存后再加载（saved-loaded）** 的**镜像**则没有丢失历史和层，这意味着后者可以通过docker tag命令实现**历史层回滚**，而前者不行
++ **pull镜像**
+1. Docker的server端收到**用户发起的pull请求**后，需要做的主要工作如下：
+    + 根据用户命令行参数解析出其希望拉取的repository信息，这里repository可能为**tag格式**，也可能为**digest格式**
+    + 将repository信息解析为ReposotryInfo并验证其是否合法
+    + 根据待拉取的repository是否为**official版本**以及用户没有配置Docker Mirrors获取**endpoint列表**，并遍历endpoint，**向该endpoint指定的registry发起会话**。endpoint**偏好顺序**为API版本v2＞v1，**协议https＞http**
+    + 如果待拉取的repository为official版本，或者endpoint的API版本为v2,Docker便不再尝试对v1 endpoint发起会话，直接向v2 registry拉取镜像。
+        + 获取v2 registry的endpoint
+        + 由endpoint和待拉取镜像名**创建HTTP会话**、获取拉取指定镜像的认证信息并验证API版本
+        + 如果tag值为空，即没有指定标签，则获取v2 registry中repository的tag list，然后对于tag list中的每一个标签，都执行一次pullV2Tag方法。该方法的功能分成两大部分：
+            + 一是验证用户请求
+            + 二是当且仅当**某一层**不在本地时进行拉取这一层文件**到本地**
+        + 如果tag值不为空，则只对**指定标签**的镜像进行上述工作
+    + 如果向v2 registry拉取镜像失败，则尝试从v1 registry拉取
+2. Docker client端在pull镜像时如果用户没有指定tag，则client会**默认使用latest作为tag**，即Docker server端会收到latest这个tag，所以并不会执行以上描述的过程。但如果用户在client端没有指定tag，而是指定了下载同一个repository**所有tag镜像的flag**，即 **-a**，那么传给server的tag**仍然保持空**，这时候才会执行以上描述的过程。
++ **push镜像**
+1. 当用户制作了自己的镜像后，希望将它**上传至仓库**，此时可以通过docker push命令完成该操作
+2. Docker server接收到**用户的push请求**后的关键步骤如下:
+    + 解析出repository信息
+    + 获取所有**非Docker Mirrors**的endpoint列表，并验证repository在**本地是否存在**。遍历endpoint，然后发起同registry的会话。如果确认会话对方API版本是v2，则不再对v1 endpoint发起会话
+    + 如果endpoint对应版本为v2 registry，则验证被推registry的访问权限，创建**V2Pusher**，调用**pushV2 Repository方法**。这个方法会判断用户输入的repository名字是否含有tag，如果含有，则在本地repository中获取对应镜像的ID，调用pushV2Tag方法；如果不含有tag，则会在本地repository中查询对应所有同名repository，对其中每一个获取镜像ID，执行**pushV2Tag方法**。这个方法会首先验证用户指定的镜像ID在本地ImageStore中是否存在。接下来，该方法会对从顶向下逐个构建一个描述结构体，上传这些镜像层。将这些镜像内容上传完毕后，再将一份**描述文件manifest上传到**registry。
+    + 如果镜像不属于上述情况，则Docker会调用pushRepository方法来推送镜像到v1 registry，并根据待推送的repository和tag信息保证当且仅当某layer在enpoint上不存在时，才上传该layer。
++ **docker export命令导出容器**
+1. daemon实例调用ContainerExport方法来进行具体的操作，这个过程的主要步骤如下：
+    + 根据命令行参数（容器名称）找到**待导出**的容器
+    + 对该容器调用**containerExport()函数**导出容器中的所有数据包括：
+        + ❏ **挂载**待导出容器的文件系统；
+        + ❏ 打包该容器**basefs（即graphdriver上的挂载点）**下的所有文件。以aufs为例，basefs对应的是aufs/mnt下对应容器ID的目录；
+        + ❏ 返回打包文档的结果并卸载该容器的文件系统。
+    + 将导出的数据回写到HTTP请求应答中。
++ **docker save命令保存镜像**
+1. save函数会创建一个**临时文件夹**用于保存**镜像json文件**。
+2. 然后循环遍历所有**待导出的镜像**，对每一个镜像执行saveImage函数来导出该镜像。
+3. 另外，为了与老版本repository兼容，还会将被导出的repository的名称、标签及ID信息以JSON格式写入到名为repositories的文件中。
+4. 而新版本中被导出的镜像配置文件名、repository的名称、标签以及镜像层描述信息则是写入到**名为manifest.json的文件**中。最后执行文件压缩并写入到输出流。
