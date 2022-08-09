@@ -106,4 +106,19 @@
             $ cd /home/me/myapp/some/dir/really/deep
             $ sudo docker build -f /home/me/myapp/dockerfiles/debug /home/me/myapp
           ```
-3. 
+3. Docker server端
+    + 创建一个**临时目录**，并将context指定的文件系统**解压到该目录**下
+    + 读取并**解析Dockerfile**
+    + 根据解析出的Dockerfile**遍历其中**的所有指令，并**分发到不同的模块**去执行。Dockerfile每条指令的格式均为INSTRUCTION arguments,INSTRUCTION是一些特定的关键词，包括FROM、RUN、USER等，都会**映射到不同的parser**进行处理
+    + parser为上述每一个指令创建一个对应的**临时容器**，在临时容器中执行当前指令，然后通过**commit使用此容器生成一个镜像层**
+    + Dockerfile中**所有的指令对应的层的集合**，就是此次build后的结果
+    + 如果指定了**tag参数**，便给镜像打上对应的tag
+    + **最后一次commit**生成的镜像ID就会作为**最终的镜像ID**返回
+# Docker镜像的分发方法
++ `docker export`与`docker import`：“在某台**机器**上**导出**一个Docker**容器**并且在另外一台机器上**导入**”
++ `docker push`和`docker pull`，或者`docker save`和`docker load`命令进行**镜像的分发**
+1. docker push通过**线上Docker Hub**的方式迁移
+2. docker save则是通过**线下包**分发的方式迁移
++ 直接**对容器进行**持久化和**使用镜像进行**持久化的区别在于以下两点：
+1. 两者**应用的对象**有所不同，docker export用于**持久化容器**，而docker push和docker save用于**持久化镜像**
+2. 将容器**导出后再导入（exported-imported）** 后的**容器**会**丢失所有的历史**，而**保存后再加载（saved-loaded）** 的**镜像**则没有丢失历史和层，这意味着后者可以通过docker tag命令实现**历史层回滚**，而前者不行
