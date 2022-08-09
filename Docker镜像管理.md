@@ -65,3 +65,45 @@
 + **Dockerfile**
 1. Dockerfile是在通过docker build命令**构建自己的Docker镜像**时需要使用到的**定义文件**
 2. 它允许用户使用基本的**DSL语法**来定义Docker镜像，每一条指令**描述了构建镜像的步骤**
+# Docker镜像构建操作
++ 用户并不能“无中生有”地创建一个镜像，无论是启动一个容器或者构建一个镜像，都是在**其他镜像的基础上**进行的，Docker有一系列镜像称为**基础镜像**（如基础Ubuntu镜像ubuntu、基础Fedora镜像fedora等），**基础镜像便是镜像构建的起点**。
++ docker commit是**将容器**提交为一个镜像，也就是从容器更新或者构建镜像
++ docker build是**在一个镜像的基础上**构建镜像
++ **commit镜像**
+1. docker commit命令**只提交**容器镜像**发生变更了的部分**，即修改后的容器镜像与**当前仓库中**对应镜像之间的**差异部分**，这使得该操作**实际需要提交的文件往往并不多**
+2. **Docker daemon**接收到对应的HTTP请求后，需要执行的步骤如下:
+    + 根据用户输入pause参数的设置确定**是否暂停**该Docker容器的运行
+    + 将容器的**可读写层导出打包**，该读写层代表了当前运行容器的文件系统与当初启动该容器的镜像之间的**差异**
+    + 在**层存储（layerStore）**中注册可读写层**差异包**
+    + 更新镜像历史信息和rootfs，并据此在**镜像存储（imageStore）** 中创建一个**新的镜像**，记录其元数据
+    + 如果指定了repository信息，则给上述镜像添加**tag信息**
++ **build构建镜像**
+1. 用户主要使用**Dockerfile和docker build命令**来完成一个新镜像的构建。 
+    + `Usage: docker build [OPTIONS] PATH | URL | -`
+        + PATH或URL所指向的文件称为**context（上下文）**, context包含build Docker镜像过程中**需要的Dockerfile以及其他的资源文件**
+2. 当**Docker client**接收到用户命令，首先解析**命令行参数**
+    + 情况1：第一个参数为“-”，即
+        + ```
+            #从STDIN中读入Dockerfile，没有context。
+            $ sudo docker build - < Dockerfile
+            
+            #从STDIN中读入压缩的context。
+            $ sudo docker build - < context.tar.gz
+          ```
+        + 此时，则根据命令行输入参数对Dockerfile和context进行设置。
+    + 情况2：第一个参数为URL，且是**git repository URL**，如
+        + ```
+            $ sudo docker build github.com/creack/docker-firefox
+          ```
+        + 调用git clone ——depth 1——recursive命令**克隆该GitHub repository**，该操作会在**本地的一个临时目录中**进行，命令成功之后**该目录将作为context**传给Docker daemon，该**目录中的Dockerfile**会被用来进行后续构建Docker镜像
+    + 情况3：第一个参数为URL，**且不是git repository URL**，则从该URL**下载context**，并将其封装为一个**io流——io.Reader**，后面的处理与情况1相同，只是将STDIN换为了io.Reader
+    + 情况4：其他情况，即context为本地文件或目录的情况
+        + ```
+            #使用了当前文件夹作为context
+            $ sudo docker build -t vieux/apache:2.0 .
+            
+            #使用/home/me/myapp/dockerfiles/debug作为Dockerfile，并且使用/home/me/myapp作为context
+            $ cd /home/me/myapp/some/dir/really/deep
+            $ sudo docker build -f /home/me/myapp/dockerfiles/debug /home/me/myapp
+          ```
+3. 
