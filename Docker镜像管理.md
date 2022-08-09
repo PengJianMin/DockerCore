@@ -7,7 +7,7 @@
 + Docker镜像的**文件内容**以及一些运行Docker**容器的配置文件**组成了Docker容器的**静态文件系统运行环境——rootfs**
 + rootfs：Docker容器的**根目录**
 1. rootfs是Docker容器在启动时**内部进程可见**的文件系统
-2. rootfs通常包含一个操作系统运行所需的文件系统，例如可能包含典型的**类Unix操作系统中的目录系统**，如/dev、/proc、/bin、/etc、/lib、/usr、/tmp及运行Docker容器所需的配置文件、工具等
+2. rootfs通常包含一个操作系统运行所需的文件系统，例如可能包含典型的**类Unix操作系统中的目录系统**，**如/dev、/proc、/bin、/etc、/lib、/usr、/tmp及运行Docker容器所需的配置文件、工具等**
 3. 在**传统的Linux操作系统内核启动**时，首先挂载一个**只读（read-only）的**rootfs，当系统检测其完整性之后，再将其切换为**读写（read-write）模式**
 4. 在Docker架构中，当Docker daemon为Docker容器挂载rootfs时，**沿用了**Linux内核启动时的方法，即将rootfs设为只读模式。在挂载完毕之后，利用**联合挂载（union mount）技术**在已有的只读rootfs上**再挂载一个读写层**。这样，可读写层处于Docker容器文件系统的最顶层，其下**可能联合挂载多个只读层**，只有在Docker容器运行过程中**文件系统发生变化**时，才会把变化的文件内容写到可读写层，并**隐藏只读层中的老版本文件**
 + Docker镜像的主要**结构特点**
