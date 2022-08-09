@@ -47,4 +47,21 @@
         + 用户仓库由**普通的**Docker Hub用户创建
         + 顶层仓库则由**Docker公司**负责维护，提供官方版本镜像。理论上，顶层仓库中的镜像经过Docker公司验证，被认为是**架构良好且安全的**
 +  **repository**
-1. 
+1. repository即由具有某个功能的Docker镜像的**所有迭代版本**构成的**镜像组**
+2. **registry由一系列经过命名的repository组成**，repository通过**命名规范**对用户仓库和顶层仓库进行组织
+    + 用户仓库的命名由用户名和repository名两部分组成，中间以“/”隔开，即username/repository_name的形式，repository名通常表示镜像所具有的功能，如ansible/ubuntu14.04-ansible；而顶层仓库则**只包含repository名的部分**，如ubuntu。
+3. repository是一个**镜像集合**，其中包含了**多个不同版本的镜像**，使用标签进行版本区分，如ubuntu:14.04、ubuntu:12.04等，它们均属于**ubuntu这个repository**
+4. **registry是repository的集合，repository是镜像的集合**
++ **manifest（描述文件）**
+1. manifest（描述文件）主要存在于registry中作为Docker镜像的**元数据文件**，在pull、push、save和load中作为**镜像结构和基础信息的描述文件**。在镜像被pull或者load到Docker宿主机时，manifest被**转化为本地的镜像配置文件config**
+2. **manifest list**可以组合**不同架构**实现**同名Docker镜像的manifest**，用以支持**多架构Docker镜像**
++ **image**
+1. Docker内部的image概念是用来存储一组**镜像相关的元数据信息**，主要包括镜像的**架构（如amd64）**、镜像**默认配置信息**、构建镜像的**容器配置信息**、包含所有镜像层信息的rootfs。
+2. Docker利用rootfs中的**diff_id**计算出内容寻址的索引（chainID）来获取**layer相关信息**，进而获取每一个镜像层的文件内容。
++ **layer（镜像层）**
+1. layer（镜像层）是一个Docker用来**管理镜像层的中间概念**
+2. 镜像是由镜像层组成的，而单个镜像层可能被**多个镜像共享**，所以Docker将layer与image的**概念分离**。
+3. Docker镜像管理中的layer主要存放了镜像层的diff_id、size、cache-id和parent等内容，**实际的文件内容**则是由**存储驱动**来管理，并可以通过**cache-id**在**本地**索引到。
++ **Dockerfile**
+1. Dockerfile是在通过docker build命令**构建自己的Docker镜像**时需要使用到的**定义文件**
+2. 它允许用户使用基本的**DSL语法**来定义Docker镜像，每一条指令**描述了构建镜像的步骤**
