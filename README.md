@@ -346,7 +346,7 @@
     + perf_event：使用后使cgroup中的任务可以进行统一的**性能测试**
     + net_cls:Docker**没有直接使用**它，它通过使用**等级识别符（classid）** 标记**网络数据包**，从而允许Linux**流量控制程序（Traffic Controller, TC）** 识别从具体cgroup中生成的数据包
 3. cgroup简单实验
-    + Linux中cgroup的实现形式表现为一个**文件系统**，因此需要mount这个文件系统才能够使用（也有可能已经mount好了），挂载成功后，就能看到各类子系统
+    + Linux中cgroup的**实现形式**表现为一个**文件系统**，因此需要mount这个文件系统才能够使用（也有可能已经mount好了），挂载成功后，就能看到各类子系统
     + `mount -t cgroup` 查看cgroup挂载情况
     + `ls -l /sys/fs/cgroup` 该目录下能看到各种支持的**子系统**
     + 在/sys/fs/cgroup的cpu子目录下创建控制组
@@ -390,10 +390,10 @@ cgroup/cpu/docker/
 ```
 +  `/sys/fs/cgroup/cpu/docker/<container-ID>`下文件的作用`
 1. 一个cgroup创建完成，**不管绑定了何种子系统**，其目录下都会生成以下几个文件，用来描述cgroup的相应信息。同样，把相应信息写入这些配置文件就可以生效
-    + tasks：这个文件中罗列了所有在该cgroup中任务的TID，即所有进程或线程的ID。该文件并不保证任务的TID有序，把一个任务的TID写到这个文件中就意味着把这个任务加入这个cgroup中，如果这个任务所在的任务组与其不在同一个cgroup，那么会在cgroup.procs文件里记录一个该任务所在任务组的TGID值，但是该任务组的其他任务并不受影响。
+    + tasks：这个文件中罗列了所有**在该cgroup中任务的TID，即所有进程或线程的ID**。该文件并不保证任务的TID有序，把**一个任务的TID写到这个文件中就意味着把这个任务加入这个cgroup**中，如果这个任务**所在的任务组**与其不在同一个cgroup，那么会在cgroup.procs文件里记录一个该任务所在任务组的TGID值，但是**该任务组的其他任务**并不受影响。
     + cgroup.procs：这个文件罗列所有在该cgroup中的TGID（线程组ID），即线程组中第一个进程的PID。该文件并不保证TGID有序和无重复。写一个TGID到这个文件就意味着把与其相关的线程都加到这个cgroup中。
-    + notify_on_release：填0或1，表示是否在cgroup中最后一个任务退出时通知运行release agent，默认情况下是0，表示不运行。
-    + release_agent：指定release agent执行脚本的文件路径（该文件在最顶层cgroup目录中存在），这个脚本通常用于自动化卸载无用的cgroup。
+    + notify_on_release：填0或1，表示是否在cgroup中**最后一个任务**退出时通知运行release agent，默认情况下是0，表示不运行。
+    + release_agent：指定**release agent执行脚本**的文件路径（该文件在**最顶层cgroup目录中存在**），这个脚本通常用于**自动化卸载无用的cgroup**
 +  cgroups**实现方式**及**工作原理**简介
 1. cgroups的实现本质上是给任务**挂上钩子**，当任务运行的过程中**涉及某种资源**时，就会触发钩子上所附带的**子系统进行检测**，根据资源类别的不同，使用对应的技术进行**资源限制**和**优先级分配**
 2. cgroups如何判断资源超限及超出限额**之后的措施**
