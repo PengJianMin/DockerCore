@@ -345,5 +345,55 @@
     + memory：可以设定cgroup中任务对**内存**使用量的限定，并且自动生成这些任务对内存资源使用情况的报告
     + perf_event：使用后使cgroup中的任务可以进行统一的**性能测试**
     + net_cls:Docker**没有直接使用**它，它通过使用**等级识别符（classid）** 标记**网络数据包**，从而允许Linux**流量控制程序（Traffic Controller, TC）** 识别从具体cgroup中生成的数据包
-3. Linux中cgroup的实现形式表现为一个**文件系统**，因此需要mount这个文件系统才能够使用（也有可能已经mount好了），挂载成功后，就能看到各类子系统
-    + `mount -t cgroup`
+3. cgroup简单实验
+    + Linux中cgroup的实现形式表现为一个**文件系统**，因此需要mount这个文件系统才能够使用（也有可能已经mount好了），挂载成功后，就能看到各类子系统
+    + `mount -t cgroup` 查看cgroup挂载情况
+    + `ls -l /sys/fs/cgroup` 该目录下能看到各种支持的**子系统**
+    + 在/sys/fs/cgroup的cpu子目录下创建控制组
+        + `cd /sys/fs/cgroup`
+        + `mkdir cg1`
+        + `ls cg1`
+            + ```   
+                    cgroup.clone_children  cpuacct.usage_percpu       cpu.cfs_period_us  cpu.stat
+                    cgroup.procs           cpuacct.usage_percpu_sys   cpu.cfs_quota_us   notify_on_release
+                    cpuacct.stat           cpuacct.usage_percpu_user  cpu.rt_period_us   tasks
+                    cpuacct.usage          cpuacct.usage_sys          cpu.rt_runtime_us
+                    cpuacct.usage_all      cpuacct.usage_user         cpu.shares
+     + `echo 18828 >> /sys/fs/cgroup/cpu/cg1/tasks` 限制18828进程
+     + `echo 20000 > /sys/fs/cgroup/cpu/cg1/cpu.cfs_quota_us` 将CPU限制为最高使用20%
+4. 在**Docker的实现**中，**Docker daemon**会在单独**挂载了每一个子系统的控制组目录**（比如/sys/fs/cgroup/cpu）下创建一个**名为docker的控制组**，然后在docker控制组里面，**再为**每个容器创建一个以**容器ID**为名称的**容器控制组**，这个容器里的**所有进程的进程号**都会写到该控制组tasks中，并且在**控制文件（比如cpu.cfs_quota_us）** 中写入预设的限制参数值。
+5. docker组的层级结构如下
+```
+$ tree cgroup/cpu/docker
+cgroup/cpu/docker/
+├—— 0e8220dbfeac5cb96eb34c4b1a0d648e9358f205bec8c803bc1f7fc178cb8f78 #这是容器ID
+|   ├—— cgroup.clone_children
+|   ├—— cgroup.procs
+|   ├—— cpu.cfs_period_us
+|   ├—— cpu.cfs_quota_us #这里有值
+|   ├—— cpu.rt_period_us
+|   ├—— cpu.rt_runtime_us
+|   ├—— cpu.shares
+|   ├—— cpu.stat
+|   ├—— notify_on_release
+|   └—— tasks
+├—— cgroup.clone_children
+├—— cgroup.procs
+├—— cpu.cfs_period_us
+├—— cpu.cfs_quota_us
+├—— cpu.rt_period_us
+├—— cpu.rt_runtime_us
+├—— cpu.shares
+├—— cpu.stat
+├—— notify_on_release
+└—— tasks
+```
++  cgroups**实现方式**及**工作原理**简介
+1. cgroups的实现本质上是给任务**挂上钩子**，当任务运行的过程中**涉及某种资源**时，就会触发钩子上所附带的**子系统进行检测**，根据资源类别的不同，使用对应的技术进行**资源限制**和**优先级分配**
+2. cgroups如何判断资源超限及超出限额**之后的措施**
+    + 对于**不同的系统资源**，cgroups提供了**统一的接口**对资源进行**控制和统计**，但限制的**具体方式则不尽相同**
+    + **memory子系统**，会在描述内存状态的“mm_struct”结构体中记录它所属的cgroup，当进程需要申请更多内存时，就会触发cgroup用量检测，用量超过cgroup规定的限额，则拒绝用户的内存申请，否则就给予相应内存并在cgroup的统计信息中记录。实际实现要比以上描述**复杂得多**，不仅需考虑内存的分配与回收，还需考虑不同类型的内存如cache（缓存）和swap（交换区内存拓展）等。
+    + 进程所需的内存超过它所属的cgroup最大限额以后，如果设置了**OOM Control（内存超限控制）** ，那么进程就会收到OOM信号并结束；否则进程就会**被挂起**，进入睡眠状态，直到cgroup中其他进程释放了足够的内存资源为止
+    + **Docker**中**默认是开启**OOM Control的。
++ cgroup**与任务之间**的关联关系
+1. 实现上，cgroup与任务之间是**多对多的关系**，所以它们并不直接关联，而是通过一个**中间结构**把双向的关联信息记录起来。每个**任务结构体task_struct**中都包含了一个**指针**，可以查询到对应cgroup的情况，同时也可以查询到各个子系统的状态，这些子系统状态中也包含了**找到任务的指针**，不同类型的子系统按需定义**本身的控制信息结构体**，最终在自定义的结构体中把子系统状态指针包含进去，然后**内核**通过container_of（这个宏可以通过一个结构体的成员找到结构体自身）等宏定义来获取对应的结构体，关联到任务，以此达到资源限制的目的。同时，为了让cgroups便于用户理解和使用，也为了用精简的内核代码为cgroup提供熟悉的权限和命名空间管理，内核开发者们按照**Linux虚拟文件系统转换器（Virtual Filesystem Switch, VFS）** 接口实现了一套名为cgroup的文件系统，非常巧妙地用来表示cgroups的层级概念，把各个子系统的实现都**封装到文件系统的各项操作中**。
