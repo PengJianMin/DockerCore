@@ -34,4 +34,9 @@
       + 由于初始挂载时**读写层为空**，所以从**用户的角度**看，该**容器的文件系统**与**底层的rootfs**没有差别
       + 从**内核的角度**来看，则是**显式区分**开来的两个层次。当需要修改镜像内的某个文件时，只对处于**最上方的读写层**进行了变动，**不覆写下层**已有文件系统的内容，已有文件在只读层中的**原始版本仍然存在**，但会被读写层中的**新版文件所隐藏**
       + 当**docker commit**这个修改过的**容器文件系统**为一个新的镜像时，保存的内容**仅为最上层读写**文件系统中被**更新过的文件**
-      + ![aufs挂载Ubuntu 14.04文件系统示意图]()
+      + ![aufs挂载Ubuntu 14.04文件系统示意图](https://github.com/PengJianMin/DockerCore/blob/main/aufs%E6%8C%82%E8%BD%BDUbuntu%2014.04%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%A4%BA%E6%84%8F%E5%9B%BE.jpg)
+5. Docker镜像的**存储组织方式**
+    + ![ Docker容器文件系统的全局视图](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E5%AE%B9%E5%99%A8%E6%96%87%E4%BB%B6%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%85%A8%E5%B1%80%E8%A7%86%E5%9B%BE.jpg)
+    + 除了echo hello进程所在的cgroups和namespace环境之外，容器文件系统其实是一个**相对独立的组织**
+    + **可读写部分（read-write layer以及volumes）、init-layer、只读层（read-only layer）** 这3部分结构共同组成了一个容器所需的下层文件系统，它们通过联合挂载的方式**巧妙地表现为一层**，使得**容器进程**对这些层的存在**一点都不知道**
+# Docker镜像关键概念
