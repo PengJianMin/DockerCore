@@ -333,3 +333,17 @@
 2. 一个子系统可以**附加到多个层级**，当且仅当目标层级**只有唯一一个子系统**时。下图小圈中的数字表示子系统附加的时间顺序，CPU子系统附加到层级A的同时不能再附加到层级B，因为层级B已经附加了内存子系统。**如果层级B没有附加过内存子系统**，那么CPU子系统同时附加到两个层级是允许的。![一个已经附加在某个层级上的子系统不能附加到其他含有别的子系统的层级上](https://github.com/PengJianMin/DockerCore/blob/main/%E4%B8%80%E4%B8%AA%E5%B7%B2%E7%BB%8F%E9%99%84%E5%8A%A0%E5%9C%A8%E6%9F%90%E4%B8%AA%E5%B1%82%E7%BA%A7%E4%B8%8A%E7%9A%84%E5%AD%90%E7%B3%BB%E7%BB%9F%E4%B8%8D%E8%83%BD%E9%99%84%E5%8A%A0%E5%88%B0%E5%85%B6%E4%BB%96%E5%90%AB%E6%9C%89%E5%88%AB%E7%9A%84%E5%AD%90%E7%B3%BB%E7%BB%9F%E7%9A%84%E5%B1%82%E7%BA%A7%E4%B8%8A.jpg)
 3. 系统每次新建一个层级时，该系统上的所有任务**默认加入**这个新建层级的初始化cgroup，这个cgroup也被称为**root cgroup**。对于创建的每个层级，任务只能存在于其中一个cgroup中，即**一个任务不能存在于同一个层级的不同cgroup中**，但**一个任务可以存在于不同层级中的多个cgroup中**。如果操作时把一个任务添加到**同一个层级**中的另一个cgroup中，则会将它从第一个cgroup中**移除**。下图可以看到，httpd任务已经加入到层级A中的/cg1，而不能加入**同一个层级**中的/cg2，但是可以加入层级B中的/cg3。![一个任务不能属于同一个层级的不同cgroup](https://github.com/PengJianMin/DockerCore/blob/main/%E4%B8%80%E4%B8%AA%E4%BB%BB%E5%8A%A1%E4%B8%8D%E8%83%BD%E5%B1%9E%E4%BA%8E%E5%90%8C%E4%B8%80%E4%B8%AA%E5%B1%82%E7%BA%A7%E7%9A%84%E4%B8%8D%E5%90%8Ccgroup.jpg)
 4. 任务在fork/clone自身时创建的子任务**默认与原任务**在同一个cgroup中，但是子任务**允许被移动**到不同的cgroup中。即fork/clone完成后，**父子任务间在cgroup方面是互不影响的**。下图中小圈中的数字表示任务出现的时间顺序，当httpd刚fork出另一个httpd时，两者在同一个层级中的同一个cgroup中。但是随后如果ID为4840的httpd需要移动到其他cgroup也是可以的，因为父子任务间已经独立。总结起来就是：**初始化时子任务与父任务在同一个cgroup，但是这种关系随后可以改变。**![刚fork_clone出的子任务在初始状态与其父任务处于同一个cgroup](https://github.com/PengJianMin/DockerCore/blob/main/%E5%88%9Afork_clone%E5%87%BA%E7%9A%84%E5%AD%90%E4%BB%BB%E5%8A%A1%E5%9C%A8%E5%88%9D%E5%A7%8B%E7%8A%B6%E6%80%81%E4%B8%8E%E5%85%B6%E7%88%B6%E4%BB%BB%E5%8A%A1%E5%A4%84%E4%BA%8E%E5%90%8C%E4%B8%80%E4%B8%AAcgroup.jpg)
++ 子系统简介
+1. Docker并**没有对**cgroup本身做增强，**容器用户**一般也**不需要直接操作cgroup**
+2. Docker使用如下9种子系统：
+    + blkio：可以为**块设备**设定输入/输出限制，比如物理驱动设备（包括磁盘、固态硬盘、USB等）
+    + cpu：使用调度程序控制任务**对CPU的使用**
+    + cpuacct：自动生成cgroup中任务对CPU资源使用情况的**报告**
+    + cpuset：可以为cgroup中的任务分配**独立的**CPU（此处针对多处理器系统）和内存
+    + devices：可以开启或关闭cgroup中任务**对设备的访问**
+    + freezer：可以挂起或恢复cgroup中的任务
+    + memory：可以设定cgroup中任务对**内存**使用量的限定，并且自动生成这些任务对内存资源使用情况的报告
+    + perf_event：使用后使cgroup中的任务可以进行统一的**性能测试**
+    + net_cls:Docker**没有直接使用**它，它通过使用**等级识别符（classid）** 标记**网络数据包**，从而允许Linux**流量控制程序（Traffic Controller, TC）** 识别从具体cgroup中生成的数据包
+3. Linux中cgroup的实现形式表现为一个**文件系统**，因此需要mount这个文件系统才能够使用（也有可能已经mount好了），挂载成功后，就能看到各类子系统
+    + `mount -t cgroup`
