@@ -40,9 +40,11 @@
     + 除了echo hello进程所在的cgroups和namespace环境之外，容器文件系统其实是一个**相对独立的组织**
     + **可读写部分（read-write layer以及volumes）、init-layer、只读层（read-only layer）** 这3部分结构共同组成了一个容器所需的下层文件系统，它们通过联合挂载的方式**巧妙地表现为一层**，使得**容器进程**对这些层的存在**一点都不知道**
 # Docker镜像关键概念
-+  **registry** 用以**保存**Docker镜像
-1. registry用以保存Docker镜像，其中还包括**镜像层次结构**和关于**镜像的元数据**
++  **registry** 
+1. registry用以**保存Docker镜像**，其中还包括**镜像层次结构**和关于**镜像的元数据**
 2. 用户可以在自己的数据中心搭建**私有的registry**，也可以使用Docker官方的**公用registry服务**，即**Docker Hub**
     + Docker Hub中有两种类型的仓库，即**用户仓库（user repository）** 与**顶层仓库（top-level repository）**
         + 用户仓库由**普通的**Docker Hub用户创建
         + 顶层仓库则由**Docker公司**负责维护，提供官方版本镜像。理论上，顶层仓库中的镜像经过Docker公司验证，被认为是**架构良好且安全的**
++  **repository**
+1. 
