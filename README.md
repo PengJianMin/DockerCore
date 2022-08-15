@@ -4,7 +4,7 @@
 3. [client和daemon]() undone
 4. [libcontainer]() undone
 5. [Docker镜像管理](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E9%95%9C%E5%83%8F%E7%AE%A1%E7%90%86.md) √
-6. [Docker存储管理]() undone
+6. [Docker存储管理](https://github.com/PengJianMin/DockerCore/blob/main/Docker%E5%AD%98%E5%82%A8%E7%AE%A1%E7%90%86.md) 
 7. [Docker数据卷管理]() undone
 8. [Docker网络管理]() undone
 9. [Docker容器与安全]() undone
