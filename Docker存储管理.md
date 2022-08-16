@@ -5,8 +5,8 @@
 + Docker在管理镜像层元数据时，采用的也正是从上至下repository、image、layer三个层次
 1. repository与image这两类元数据**并无物理上的镜像文件**与之对应
 2. layer这种元数据则**存在物理上的镜像层文件**与之对应
-3. **`repository`元数据**
-    + 存放位置 **`/var/lib/docker/image/${Driver}/repositories. json`**
+# `repository`元数据
+1. 存放位置 **`/var/lib/docker/image/${Driver}/repositories. json`**
 ```
     /var/lib/docker/image/aufs# cat repositories.json | python -m json.tool
     {    
@@ -20,6 +20,7 @@
           }
      }
 ```
-    + 存储了所有`repository`的名字
-    + 每个`repository`下 **所有版本** 镜像的名字和tag（如ubuntu:latest）以及对应的镜像ID
-    + 当前Docker默认采用SHA256算法根据镜像元数据配置文件**计算出镜像ID**
+2. 存储了所有`repository`的名字
+3. 每个`repository`下 **所有版本** 镜像的名字和tag（如ubuntu:latest）以及对应的镜像ID
+4. 当前Docker默认采用SHA256算法根据镜像元数据配置文件**计算出镜像ID**
+# image元数据
