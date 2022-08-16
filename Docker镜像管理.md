@@ -5,7 +5,7 @@
 + Docker镜像是一个**只读**的Docker**容器模板**，含有启动Docker容器所需的**文件系统结构及其内容**
 + Docker镜像是Docker容器的**静态视角**，Docker容器是Docker镜像的**运行状态**
 + Docker镜像的**文件内容**以及一些运行Docker**容器的配置文件**组成了Docker容器的**静态文件系统运行环境——rootfs**
-+ rootfs：Docker容器的**根目录**
++ **`rootfs`**：Docker容器的**根目录**
 1. rootfs是Docker容器在启动时**内部进程可见**的文件系统
 2. rootfs通常包含一个操作系统运行所需的文件系统，例如可能包含典型的**类Unix操作系统中的目录系统**，**如/dev、/proc、/bin、/etc、/lib、/usr、/tmp及运行Docker容器所需的配置文件、工具等**
 3. 在**传统的Linux操作系统内核启动**时，首先挂载一个**只读（read-only）的**rootfs，当系统检测其完整性之后，再将其切换为**读写（read-write）模式**
