@@ -1,5 +1,5 @@
 # Docker存储管理 
-+ Docker提供了各种基于不同文件系统**实现的存储驱动（aufs、overlay2等）**来管理**实际镜像文件**
++ Docker提供了各种基于不同文件系统**实现的存储驱动（aufs、btrfs、devicemapper、vfs、overlay、zfs）**来管理**实际镜像文件**
 # Docker镜像元数据管理
 + Docker镜像在设计上将镜像**元数据**与镜像文件**的存储**完全**隔离**开了
 + Docker在管理镜像层元数据时，采用的也正是从上至下repository、image、layer三个层次
