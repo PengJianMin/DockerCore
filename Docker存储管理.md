@@ -22,3 +22,4 @@
 ```
     + 存储了所有`repository`的名字
     + 每个`repository`下 **所有版本** 镜像的名字和tag（如ubuntu:latest）以及对应的镜像ID
+    + 当前Docker默认采用SHA256算法根据镜像元数据配置文件**计算出镜像ID**
